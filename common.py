@@ -104,13 +104,13 @@ def apply_glow(img, intensity=0.4, radius=40):
     blended = 1.0 - (1.0 - img_arr) * (1.0 - glow_arr * intensity)
     return Image.fromarray((np.clip(blended, 0, 1) * 255).astype(np.uint8), img.mode)
 
-def apply_vignette(img, strength=0.6):
+def apply_vignette(img, strength=0.6, center_offset=(0, 0)):
     arr = np.array(img, dtype=np.float32)
     h, w = arr.shape[:2]
-    cx, cy = w / 2, h / 2
+    cx, cy = w / 2 + center_offset[0], h / 2 + center_offset[1]
     yy, xx = np.mgrid[0:h, 0:w]
-    dist = np.sqrt((xx - cx)**2 + (yy - cy)**2) / (max(w, h) * 0.5)
-    vig = np.clip((dist - 0.5) * 1.0, 0, 1) ** 1.5
+    dist = np.sqrt((xx - cx)**2 + (yy - cy)**2) / (max(w, h) * 0.55)
+    vig = np.clip((dist - 0.55) * 1.0, 0, 1) ** 1.5
     bg = np.array(BG_COLOR, dtype=np.float32)
     for c in range(3):
         arr[:, :, c] = arr[:, :, c] * (1 - vig * strength) + bg[c] * vig * strength
@@ -118,14 +118,14 @@ def apply_vignette(img, strength=0.6):
 
 def postprocess_and_save(img, output_path):
     print("  Applying glow...")
-    img = apply_glow(img, intensity=0.4, radius=40)
+    img = apply_glow(img, intensity=0.5, radius=50)
     if img.mode == 'RGBA':
         final = Image.new('RGB', img.size, BG_COLOR)
         final.paste(img, mask=img.split()[3])
     else:
         final = img
     print("  Applying vignette...")
-    final = apply_vignette(final, strength=0.6)
+    final = apply_vignette(final, strength=0.5, center_offset=(-200, 100))
     final.save(output_path, 'PNG', optimize=True)
     size_mb = os.path.getsize(output_path) / 1024 / 1024
     print(f"  Saved: {output_path} ({size_mb:.1f} MB)")
