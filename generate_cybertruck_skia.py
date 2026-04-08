@@ -318,15 +318,91 @@ def render():
             paint.setColor(skia.ColorSetARGB(int(170 + intensity * 80), 255, 140, 40))
             canvas.drawCircle(sx, sy, spark_r, paint)
 
-    # ── Save ──
-    print("  Saving...")
+    # ── Photographic post-processing ──
+    print("  Photographic post-processing...")
     image = surface.makeImageSnapshot()
+    # Convert Skia image to numpy array
+    raw = image.tobytes()
+    arr = np.frombuffer(raw, dtype=np.uint8).reshape(HEIGHT, WIDTH, 4).copy()
+    # BGRA to RGB
+    arr = arr[:, :, [2, 1, 0]].astype(np.float32)
+
+    # 1) Lifted blacks — never pure black, like a real sensor
+    print("    Lifted blacks...")
+    arr = arr * 0.94 + 8  # floor at ~8, ceiling at ~247
+
+    # 2) S-curve contrast — film-like tonal response
+    print("    S-curve contrast...")
+    arr_norm = arr / 255.0
+    # Attempt to mimic sigmoid with smooth cubic S-curve
+    arr_norm = 0.5 + (arr_norm - 0.5) * (1.2 - 0.4 * (arr_norm - 0.5) ** 2)
+    arr = np.clip(arr_norm * 255, 0, 255)
+
+    # 3) Split toning — warm highlights, cool shadows
+    print("    Split toning...")
+    luminance = (arr[:, :, 0] * 0.299 + arr[:, :, 1] * 0.587 + arr[:, :, 2] * 0.114) / 255.0
+    # Warm highlights (add slight amber)
+    highlight_mask = np.clip((luminance - 0.5) * 2, 0, 1)
+    arr[:, :, 0] += highlight_mask * 6   # R
+    arr[:, :, 1] += highlight_mask * 3   # G (less)
+    # Cool shadows (add slight blue)
+    shadow_mask = np.clip((0.5 - luminance) * 2, 0, 1)
+    arr[:, :, 2] += shadow_mask * 8      # B
+    arr = np.clip(arr, 0, 255)
+
+    # 4) Chromatic aberration — shift R and B channels slightly
+    print("    Chromatic aberration...")
+    from scipy.ndimage import shift as nd_shift
+    ca_amount = 1.5  # pixels
+    arr[:, :, 0] = nd_shift(arr[:, :, 0], [0, ca_amount], mode='nearest')   # R shifts right
+    arr[:, :, 2] = nd_shift(arr[:, :, 2], [0, -ca_amount], mode='nearest')  # B shifts left
+
+    # 5) Bloom on bright areas
+    print("    Bloom...")
+    from PIL import Image as PILImage, ImageFilter
+    bright_threshold = 180
+    bright_mask = np.maximum(0, arr - bright_threshold).astype(np.uint8)
+    bright_img = PILImage.fromarray(bright_mask, 'RGB')
+    bloom = np.array(bright_img.filter(ImageFilter.GaussianBlur(radius=60)), dtype=np.float32)
+    arr = np.clip(arr + bloom * 0.25, 0, 255)
+
+    # 6) Lens blur at edges (simulate shallow DOF)
+    print("    Edge softness...")
+    full_img = PILImage.fromarray(arr.astype(np.uint8), 'RGB')
+    blurred = np.array(full_img.filter(ImageFilter.GaussianBlur(radius=3)), dtype=np.float32)
+    # Radial mask: sharp center, blurred edges
+    yy, xx = np.mgrid[0:HEIGHT, 0:WIDTH]
+    cx, cy = WIDTH * 0.55, HEIGHT * 0.45  # focus point slightly right of center
+    dist = np.sqrt((xx - cx)**2 + (yy - cy)**2) / (max(WIDTH, HEIGHT) * 0.5)
+    dof_mask = np.clip((dist - 0.4) * 1.5, 0, 1) ** 2
+    dof_mask = dof_mask[:, :, np.newaxis]
+    arr = arr * (1 - dof_mask) + blurred * dof_mask
+
+    # 7) Vignette — natural light falloff
+    print("    Vignette...")
+    vig = np.clip((dist - 0.45) * 1.0, 0, 1) ** 1.8
+    vig = vig[:, :, np.newaxis]
+    arr = arr * (1 - vig * 0.55) + np.array([6, 6, 12], dtype=np.float32) * vig * 0.55
+
+    # 8) Film grain — organic, luminance-dependent
+    print("    Film grain...")
+    rng = np.random.RandomState(SEED + 7)
+    grain = rng.standard_normal((HEIGHT, WIDTH)).astype(np.float32)
+    # Grain is stronger in midtones, weaker in shadows/highlights
+    lum = (arr[:, :, 0] * 0.299 + arr[:, :, 1] * 0.587 + arr[:, :, 2] * 0.114) / 255.0
+    grain_strength = 2.0 * (1.0 - 2.0 * np.abs(lum - 0.5))  # peak at mid gray
+    grain_rgb = grain[:, :, np.newaxis] * grain_strength[:, :, np.newaxis]
+    arr = np.clip(arr + grain_rgb, 0, 255)
+
+    # Save
+    print("  Saving...")
+    final = PILImage.fromarray(arr.astype(np.uint8), 'RGB')
     os.makedirs(os.path.join(os.path.dirname(__file__) or '.', "output"), exist_ok=True)
     out_path = os.path.join(os.path.dirname(__file__) or '.', "output", "cybertruck.png")
-    image.save(out_path, skia.kPNG)
+    final.save(out_path, 'PNG', optimize=True)
     size_mb = os.path.getsize(out_path) / 1024 / 1024
     print(f"  Saved: {out_path} ({size_mb:.1f} MB)")
-    print("Done: Cybertruck (Skia)")
+    print("Done: Cybertruck (Skia + Photographic)")
 
 
 if __name__ == "__main__":
