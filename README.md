@@ -14,7 +14,7 @@ A neural network awakens along Tesla's stock price trajectory. Each month of TSL
 
 ![Cybertruck](output/cybertruck.png)
 
-Tesla's angular brutalism rendered as data. Weekly OHLC (Open-High-Low-Close) candlestick data becomes a mesh of sharp triangular polygons — no curves allowed. During low-price eras the mesh is coarse and sparse; as the stock climbs, polygons multiply and refine. Orange sparks erupt at moments of extreme volatility, like welding flashes on a stainless steel panel. The palette is cold gunmetal to chrome white, a deliberate contrast to Neural Surge's organic warmth.
+Inspired by the infamous Cybertruck window-breaking incident. The entire canvas is a sheet of armored glass, shattered by impact events in Tesla's history. A Voronoi tessellation divides the surface into angular shards — small, dense fragments near impact points (S&P 500 inclusion, the 2022 crash, Cybertruck delivery) and large, calm facets in quiet periods. Each shard's brightness maps to the stock price at that moment in time: dark gunmetal on the left (the low-price IPO years), gleaming chrome on the right (the $400 era). Radial crack lines, orange welding sparks, and cold steel — the anti-thesis of Neural Surge's organic warmth.
 
 ## C. Autopilot Vision
 
@@ -35,8 +35,7 @@ Each piece uses the same underlying dataset — Tesla's stock history from its J
 | Dataset | Points | Used By |
 |---|---|---|
 | Monthly OHLCV | 179 months | Neural Surge, Autopilot Vision |
-| Weekly OHLC (resampled from daily) | 744 weeks | Cybertruck |
-| Daily OHLCV | 3,718 days | Cybertruck (source) |
+| Daily OHLCV | 3,718 days | (available for future use) |
 
 **179 monthly data points** (June 2010 IPO → April 2025) drive Neural Surge's visual elements:
 
