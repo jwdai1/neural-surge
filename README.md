@@ -1,18 +1,44 @@
-# Neural Surge
+# Tesla Data Art Series
 
-**Tesla Stock Data Art — 2010–2025**
+**Three visualizations of TSLA stock data (2010–2025), each inspired by a different facet of the Tesla universe.**
+
+---
+
+## A. Neural Surge
 
 ![Neural Surge](output/neural_surge.png)
 
-## Concept
+A neural network awakens along Tesla's stock price trajectory. Each month of TSLA's 15-year history becomes a node in a living nervous system — dendrites branch outward when the stock surges, contract inward during declines, and fire synaptic bursts at moments of extreme volatility. Inspired by the Neuralink aesthetic and circuit board geometry.
 
-A neural network awakens along Tesla's stock price trajectory. Each month of TSLA's 15-year history becomes a node in a living nervous system — dendrites branch outward when the stock surges, contract inward during declines, and fire synaptic bursts at moments of extreme volatility.
+## B. Cybertruck
 
-The piece draws from the Neuralink aesthetic and circuit board geometry to frame Tesla not as a car company, but as a technological organism that grows, reacts, and adapts.
+![Cybertruck](output/cybertruck.png)
+
+Tesla's angular brutalism rendered as data. Weekly OHLC (Open-High-Low-Close) candlestick data becomes a mesh of sharp triangular polygons — no curves allowed. During low-price eras the mesh is coarse and sparse; as the stock climbs, polygons multiply and refine. Orange sparks erupt at moments of extreme volatility, like welding flashes on a stainless steel panel. The palette is cold gunmetal to chrome white, a deliberate contrast to Neural Surge's organic warmth.
+
+## C. Autopilot Vision
+
+![Autopilot Vision](output/autopilot.png)
+
+You are riding in the driver's seat of Tesla's Full Self-Driving system, looking down a road that stretches from IPO (the vanishing point) to today (the foreground). Stock price manifests as LiDAR terrain walls flanking the road — low walls in the early years, towering cliffs of cyan point-cloud data during the 2020–2021 surge. Lane lines pulse with volatility. HUD targeting brackets mark key events: Model 3 launch, S&P 500 inclusion, the 2022 crash, and Cybertruck delivery.
+
+---
+
+## The Concept
+
+Each piece uses the same underlying dataset — Tesla's stock history from its June 2010 IPO through April 2025 — but interprets it through a completely different lens. Together, they form a triptych: organism, machine, interface.
 
 ## How Data Becomes Art
 
-**179 monthly data points** (June 2010 IPO → April 2025) drive every visual element:
+### Data Sources
+
+| Dataset | Points | Used By |
+|---|---|---|
+| Monthly OHLCV | 179 months | Neural Surge, Autopilot Vision |
+| Weekly OHLC (resampled from daily) | 744 weeks | Cybertruck |
+| Daily OHLCV | 3,718 days | Cybertruck (source) |
+
+**179 monthly data points** (June 2010 IPO → April 2025) drive Neural Surge's visual elements:
 
 | Data Metric | Visual Expression |
 |---|---|
@@ -58,7 +84,10 @@ The piece draws from the Neuralink aesthetic and circuit board geometry to frame
 - **Data:** Yahoo Finance API, monthly OHLCV
 
 ```bash
+# Generate all three variations
 /usr/local/bin/python3 generate_neural_surge.py
+/usr/local/bin/python3 generate_cybertruck.py
+/usr/local/bin/python3 generate_autopilot.py
 ```
 
 ## License
