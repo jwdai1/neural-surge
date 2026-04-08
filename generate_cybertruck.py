@@ -238,6 +238,19 @@ def render():
         poly = [(v[0], v[1]) for v in vertices]
         draw.polygon(poly, fill=color + (alpha,))
 
+        # Per-shard lighting: simulate top-left light by brightening
+        # upper-left portion. Draw a smaller offset polygon slightly brighter.
+        min_y_vert = min(ys)
+        max_y_vert = max(ys)
+        shard_h = max_y_vert - min_y_vert
+        if shard_h > 10:
+            # Light gradient: top of shard gets a highlight
+            highlight_y = min_y_vert + shard_h * 0.3
+            highlight_verts = [(v[0], v[1]) for v in vertices if v[1] < highlight_y]
+            if len(highlight_verts) >= 3:
+                bright = tuple(min(255, c + 15) for c in color)
+                draw.polygon(highlight_verts, fill=bright + (int(alpha * 0.5),))
+
     # ── Draw crack lines (Voronoi edges) ──
     print("  Drawing cracks...")
     for ridge_idx, (p1, p2) in enumerate(vor.ridge_points):
@@ -276,12 +289,20 @@ def render():
         alpha = int(40 + impact_factor * 200)
         alpha = min(alpha, 255)
 
-        if impact_factor > 0.3:
+        if impact_factor > 0.5:
+            c = (220, 235, 255, alpha)  # near-white crack
+        elif impact_factor > 0.2:
             c = CRACK_COLOR + (alpha,)
         else:
             c = CRACK_COLOR_DIM + (alpha,)
 
         draw.line([tuple(v1), tuple(v2)], fill=c, width=width)
+
+        # Secondary thin line for edge highlight (rim effect)
+        if width > 1 and impact_factor > 0.2:
+            highlight_alpha = min(255, int(alpha * 0.4))
+            draw.line([tuple(v1), tuple(v2)],
+                      fill=(240, 245, 255, highlight_alpha), width=1)
 
     # Composite cells+cracks
     img = Image.alpha_composite(img.convert('RGBA'), layer).convert('RGB')
@@ -346,8 +367,30 @@ def render():
     # ── Post-process ──
     from common import apply_glow, apply_vignette
     print("  Post-processing...")
-    img = apply_glow(img, intensity=0.35, radius=35)
+
+    # 1) Edge-detect overlay for rim lighting on cracks
+    print("    Adding rim lighting...")
+    edges = img.filter(ImageFilter.FIND_EDGES)
+    edges_arr = np.array(edges, dtype=np.float32)
+    # Tint edges with cool steel-blue
+    tinted = np.zeros_like(edges_arr)
+    tinted[:, :, 0] = edges_arr[:, :, 0] * 0.6   # less red
+    tinted[:, :, 1] = edges_arr[:, :, 1] * 0.75   # some green
+    tinted[:, :, 2] = edges_arr[:, :, 2] * 1.0    # full blue
+    # Screen blend
+    img_arr = np.array(img, dtype=np.float32) / 255.0
+    rim_arr = tinted / 255.0 * 0.4  # intensity
+    blended = 1.0 - (1.0 - img_arr) * (1.0 - rim_arr)
+    img = Image.fromarray((np.clip(blended, 0, 1) * 255).astype(np.uint8), 'RGB')
+
+    # 3) Glow
+    img = apply_glow(img, intensity=0.4, radius=40)
+
+    # 4) Vignette
     img = apply_vignette(img, strength=0.5, center_offset=(0, 0))
+
+    # 5) Micro-blur for smoother polygon edges
+    img = img.filter(ImageFilter.GaussianBlur(radius=0.4))
 
     os.makedirs(os.path.join(os.path.dirname(__file__) or '.', "output"), exist_ok=True)
     out_path = os.path.join(os.path.dirname(__file__) or '.', "output", "cybertruck.png")
